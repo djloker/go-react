@@ -3,7 +3,6 @@
 // Does NOT handle any game logic!!!
 
 import React, {Component} from 'react';
-import {toRowCol, toIndex} from './helpers';
 
 class Board extends Component {
     render() {
@@ -13,45 +12,38 @@ class Board extends Component {
         return ( <div className="game-board">{rows}</div> );
     }
 
-    renderRow(row) {
+    renderRow(y) {
         const rowSquares = [];
-        for (let col=0; col<this.props.size; col++)
-        {
-            const i = toIndex(row, col, this.props.size);
-            rowSquares.push(this.renderSquare(i));
-        }
+        for (let x=0; x<this.props.size; x++)
+            rowSquares.push(this.renderSquare(x,y));
         return <div className="board-row">{rowSquares}</div>;
     }
 
-    renderSquare(i) {
-        const edge = determineEdge(this.props.size, toRowCol(i, this.props.size))
+    renderSquare(x,y) {
+        const edge = determineEdge(this.props.size, x, y)
         let img_src = "./img/cross_32.png";
-        if (this.props.squares[i] != null)
-            img_src = "./img/"+this.props.squares[i]+"_32.png";
+        if (this.props.squares[x][y] != null)
+            img_src = "./img/"+this.props.squares[x][y]+"_32.png";
         else if (edge != null)
             img_src = "./img/cross_"+edge+"_32.png";
         return (
-            <button 
-            className="square" 
-            onClick= {() => this.props.onClick(i)}>
-                {<img src={img_src} alt={this.props.squares[i]}/>}
+            <button className="square"  onClick= {() => this.props.onClick(x,y)}>
+                {<img src={img_src} alt={this.props.squares[x][y]}/>}
             </button>
         );
     }
 }
 
 // Helper functions //
-function determineEdge(size, rowCol) {
-    const row = rowCol.row;
-    const col = rowCol.col;
-    if (col===0 && row===0)                 return 'TL';
-    else if (col===0 && row===size-1)       return 'BL';
-    else if (col===size-1 && row===0)       return 'TR';
-    else if (col===size-1 && row===size-1)  return 'BR';
-    else if (col===0)                       return 'L';
-    else if (col===size-1)                  return 'R';
-    else if (row===0)                       return 'T';
-    else if (row===size-1)                  return 'B';
+function determineEdge(size, x, y) {
+    if (x===0 && y===0)                 return 'TL';
+    else if (x===0 && y===size-1)       return 'BL';
+    else if (x===size-1 && y===0)       return 'TR';
+    else if (x===size-1 && y===size-1)  return 'BR';
+    else if (x===0)                     return 'L';
+    else if (x===size-1)                return 'R';
+    else if (y===0)                     return 'T';
+    else if (y===size-1)                return 'B';
     else return null;
 }
 
