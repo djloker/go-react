@@ -4,64 +4,93 @@
 // Handles game logic
 // Board info is passed in and treated as immutable.
 
-class Group {
-    constructor(stones, color) {
-        if (stones) this.stones = stones;
-        else this.stones = [];
-        this.border = [];
-        this.color = color;
-    }
-}
+import { Group } from './go-classes';
 
 export function placePiece(board, x, y, color) {
     // cannot replace existing pieces
-    if (board.squares[x][y]) return null;
+    if (board.squares[x][y]) return false;
+    // cannot break the ko rule
+    if ([x, y] === board.ko_block) return false;
 
-    const enemy = color === 'white' ? 'black' : 'white';
-    const removed = {
-        white: board.removals.white,
-        black: board.removals.black,
-    };
-    /*
-    const new_group = new Group([row, col], color); // create new group at placement point
+    const board_size = board.squares.length;
+
+    // Trackers for cleanup after placement
     const groups_to_capture = [];
-    const groups_to_disable = [];
+    const groups_to_remove = [];
 
-    const new_squares = board.squares.slice();
-    new_squares[i] = color;
+    // We create a new group at placement point but do not store it, yet
+    // - we must determine whether it is a valid placement first.
+    let valid_move = false;
+    const new_group = new Group([ [x, y], ], color);
 
-    // check we aren't doing a self-removal by placing here.
+    // Check directly adjacent groups to placement point so that we can
+    // - establish move validity (can't self-kill)
+    // - merge with same-colored groups
+    // - remove enemy-colored groups
     const adjacencies = [
-        [row-1,col],
-        [row+1,col],
-        [row,col-1],
-        [row,col+1],
+        [x-1,y], [x+1,y], //  left & right
+        [x,y-1], [x,y+1], // above & below
     ];
-    for (let adj_i=0; adj_i<4; adj_i++)
-    {
+    for (let adj_i=0; adj_i<4; adj_i++) {
         const u = adjacencies[adj_i][0]; // x-pos of current adjacency
         const v = adjacencies[adj_i][1]; // y-pos of current adjacency
-        if (u < 0 || v < 0 || u >= board.size || v >= board.size) continue; // verify (u,v) is inside board
-        new_group.border = new_group.border.concat([u,v]);
-    }
-    alert(new_group.border);
+        if (u < 0 || v < 0 || u >= board_size || v >= board_size) continue; // verify (u,v) is inside board
+        
+        new_group.border.push([u,v]); // add adjacency to border of new group
 
-    // TODO: removals of enemy pieces.
-    */
-    const new_squares = board.squares.slice();
-    new_squares[x][y] = color;
-    return {
-        size: board.size,
-        squares: new_squares,
-        territories: null,
-        removals: removed,
-    };
+        // Now we perform checks against any adjacent group.
+        const adj_group = board.squares[u][v];
+        if (adj_group === null) {
+            valid_move = true;
+            continue;
+        } else if (adj_group.color === new_group.color) {
+            new_group.mergeWith(adj_group);   // merge placement group with adjacent group
+            groups_to_remove.push(adj_group); // flag neighboring group for deletion (if move determined valid)
+        } else if (adj_group.numLiberties(board) === 1) {
+            // since placement removes final liberty of enemy group, this is a killing move
+            valid_move = true;
+            if (!groups_to_capture.includes(adj_group))
+                groups_to_capture.push(adj_group);
+        }
+    }
+
+    // Must have at least one liberty for a valid move (can't self-kill)
+    // we OR this check against any previous checks on valid_move.
+    if (new_group.numLiberties(board) >= 1) {
+        valid_move = true;
+    }
+
+    // We have finalized valid_move, so if invalid proceed no futher
+    if (!valid_move) {
+        return false;
+    }
+
+    // Perform scheduled captures && removals
+    for (let to_remove in groups_to_remove) {
+        to_remove.remove(board);
+    }
+    for (let to_capture in groups_to_capture) {
+        to_capture.capture(board);
+    }
+
+    // Determine if there is a ko block to store, and store it.
+    board.ko_block = null;
+    if (new_group.stones.length === 1               // 1. new group has only one stone
+    && groups_to_capture.length === 1               // 2. only one group to be captured
+    && groups_to_capture[0].stones.length === 1) {  // 3. captured group has only one stone
+        board.ko_block = groups_to_capture[0].stones[0].slice(); // store ko block
+    }
+
+    // Actually execute the move
+    new_group.place(board);
+
+    return true;
 }
 
 export function calculateScores(board) {
     // TODO: calculate scores
-    let score_w = board.removals.white;
-    let score_b = board.removals.black;
+    let score_w = board.captured.white;
+    let score_b = board.captured.black;
     return {
         white: score_w,
         black: score_b,

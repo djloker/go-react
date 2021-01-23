@@ -9,26 +9,31 @@ class Board extends Component {
         const rows = [];
         for (let row=0; row<this.props.size; row++)
             rows.push(this.renderRow(row));
-        return ( <div className="game-board">{rows}</div> );
+        return <div className="game-board" key="game-board">{rows}</div>;
     }
 
     renderRow(y) {
         const rowSquares = [];
         for (let x=0; x<this.props.size; x++)
             rowSquares.push(this.renderSquare(x,y));
-        return <div className="board-row">{rowSquares}</div>;
+        return <div className="board-row" key={'row-'+y}>{rowSquares}</div>;
     }
 
     renderSquare(x,y) {
         const edge = determineEdge(this.props.size, x, y)
         let img_src = "./img/cross_32.png";
+        let altText = "empty";
         if (this.props.squares[x][y] != null)
-            img_src = "./img/"+this.props.squares[x][y]+"_32.png";
+        {
+            altText = this.props.squares[x][y].color;
+            img_src = "./img/"+altText+"_32.png";
+        }
         else if (edge != null)
             img_src = "./img/cross_"+edge+"_32.png";
+        
         return (
-            <button className="square"  onClick= {() => this.props.onClick(x,y)}>
-                {<img src={img_src} alt={this.props.squares[x][y]}/>}
+            <button className="square" onClick= {() => this.props.onClick(x,y)}>
+                {<img src={img_src} alt={altText} draggable="false"/>}
             </button>
         );
     }
