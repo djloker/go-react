@@ -6,6 +6,17 @@
 
 import { Group } from './go-classes';
 
+function validatePosition(size, x, y) {
+    return x >= 0 && y >= 0 && x < size && y < size;
+}
+
+function getAdjacent(x,y) {
+    return [
+        [x-1,y], [x+1,y], //  left & right
+        [x,y-1], [x,y+1], // above & below
+    ];
+}
+
 export function placePiece(board, x, y, color) {
     // cannot replace existing pieces
     if (board.squares[x][y]) return false;
@@ -27,14 +38,11 @@ export function placePiece(board, x, y, color) {
     // - establish move validity (can't self-kill)
     // - merge with same-colored groups
     // - remove enemy-colored groups
-    const adjacencies = [
-        [x-1,y], [x+1,y], //  left & right
-        [x,y-1], [x,y+1], // above & below
-    ];
+    const adjacencies = getAdjacent(x, y);
     for (const adj of adjacencies) {
         const u = adj[0]; // x-pos of current adjacency
         const v = adj[1]; // y-pos of current adjacency
-        if (u < 0 || v < 0 || u >= board_size || v >= board_size) continue; // verify (u,v) is inside board
+        if (!validatePosition(board_size, u, v)) continue; // verify (u,v) is inside board
         
         new_group.border.push([u,v]); // add adjacency to border of new group
 
@@ -58,8 +66,6 @@ export function placePiece(board, x, y, color) {
     // we OR this check against any previous checks on valid_move.
     if (new_group.numLiberties(board) >= 1) {
         valid_move = true;
-        console.log(new_group.numLiberties(board));
-        console.log(new_group.border);
     }
 
     // We have finalized valid_move, so if invalid proceed no futher
@@ -88,12 +94,66 @@ export function placePiece(board, x, y, color) {
     return true;
 }
 
+function checkAndCountEmpty(board, x, y, checked, count) {
+    if (count === null) {
+        count = {white: 0, black: 0,};
+    }
+    // base case for recursion (position is empty or has been checked)
+    if (board.squares[x][y] || checked.includes(JSON.stringify([x,y]))) {
+        return count;
+    }
+    // add current position to checked list
+    checked.push(JSON.stringify([x,y]));
+    // check all neighbors
+    const adjacencies = getAdjacent(x, y);
+    for (const adj of adjacencies) {
+        const u = adj[0]; // x-pos of current adjacency
+        const v = adj[1]; // y-pos of current adjacency
+        // skip out-of-map adjacencies
+        if (!validatePosition(board.squares.length, u, v)) {
+            continue;
+        }
+        // ignore adjacencies which have been checked
+        if (!checked.includes(JSON.stringify([u,v]))) {
+            // recurse on empty squares
+            if (board.squares[u][v] === null) {
+                checkAndCountEmpty(board, u, v, checked, count);
+            } else { // count on non-empty adjacency
+                if (board.squares[u][v].color === 'white') {
+                    count.white++;
+                } else {
+                    count.black++;
+                }
+            }
+        }
+    }
+    return count;
+}
+
 export function calculateScores(board) {
+    const board_size = board.squares.length;
+
     let score_w = board.captured.white;
     let score_b = board.captured.black;
-    // TODO: calculate owned territories
-    return {
-        white: score_w,
-        black: score_b,
-    };
+    const checked = [];
+    // calculate owned territories
+    for (let x=0; x<board_size; x++) {
+        for (let y=0; y<board_size; y++) {
+            if (checked.includes(JSON.stringify([x,y]))) {
+                continue;
+            }
+            // only check empty squares
+            if (board.squares[x][y] === null) {
+                // find empty fields starting at [x,y]
+                const count = checkAndCountEmpty(board, x, y, checked, null);
+                // increment scores
+                if (count.black === 0 && count.white > 0) {
+                    score_w++;
+                } else if (count.black > 0 && count.white === 0) {
+                    score_b++;
+                }
+            }
+        }
+    }
+    return { white: score_w, black: score_b, };
 }
