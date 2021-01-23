@@ -30,7 +30,6 @@ class Board extends Component {
         }
         else if (edge != null)
             img_src = "./img/cross_"+edge+"_32.png";
-        
         return (
             <button className="square" onClick= {() => this.props.onClick(x,y)}>
                 {<img src={img_src} alt={altText} draggable="false"/>}

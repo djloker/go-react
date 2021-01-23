@@ -31,9 +31,9 @@ export function placePiece(board, x, y, color) {
         [x-1,y], [x+1,y], //  left & right
         [x,y-1], [x,y+1], // above & below
     ];
-    for (let adj_i=0; adj_i<4; adj_i++) {
-        const u = adjacencies[adj_i][0]; // x-pos of current adjacency
-        const v = adjacencies[adj_i][1]; // y-pos of current adjacency
+    for (const adj of adjacencies) {
+        const u = adj[0]; // x-pos of current adjacency
+        const v = adj[1]; // y-pos of current adjacency
         if (u < 0 || v < 0 || u >= board_size || v >= board_size) continue; // verify (u,v) is inside board
         
         new_group.border.push([u,v]); // add adjacency to border of new group
@@ -58,6 +58,8 @@ export function placePiece(board, x, y, color) {
     // we OR this check against any previous checks on valid_move.
     if (new_group.numLiberties(board) >= 1) {
         valid_move = true;
+        console.log(new_group.numLiberties(board));
+        console.log(new_group.border);
     }
 
     // We have finalized valid_move, so if invalid proceed no futher
@@ -66,12 +68,14 @@ export function placePiece(board, x, y, color) {
     }
 
     // Perform scheduled captures && removals
-    for (let to_remove in groups_to_remove) {
+    for (const to_remove of groups_to_remove) {
         to_remove.remove(board);
     }
-    for (let to_capture in groups_to_capture) {
+    for (const to_capture of groups_to_capture) {
         to_capture.capture(board);
     }
+    // Actually execute the move
+    new_group.place(board);
 
     // Determine if there is a ko block to store, and store it.
     board.ko_block = null;
@@ -81,16 +85,13 @@ export function placePiece(board, x, y, color) {
         board.ko_block = groups_to_capture[0].stones[0].slice(); // store ko block
     }
 
-    // Actually execute the move
-    new_group.place(board);
-
     return true;
 }
 
 export function calculateScores(board) {
-    // TODO: calculate scores
     let score_w = board.captured.white;
     let score_b = board.captured.black;
+    // TODO: calculate owned territories
     return {
         white: score_w,
         black: score_b,
